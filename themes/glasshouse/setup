@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+T=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+[ -f "$T/shell/parts/Turn/shaders/win.frag.qsb" ] || "$T/shell/gen/build.sh"
+command -v bat >/dev/null && bat cache --build >/dev/null
+[ -d "$HOME/.themes/Rubedo-Dark" ] && [ -d "$HOME/.themes/Rubedo-Light" ] || python3 "$T/bin/glasshouse-themes.py" || echo "GTK/Kvantum themes skipped: needs catppuccin-gtk-theme-mocha, catppuccin-gtk-theme-latte, kvantum-theme-catppuccin-git"
+[ -d "$HOME/.local/share/icons/Rubedo-Dark" ] && [ -d "$HOME/.local/share/icons/Rubedo-Light" ] || python3 "$T/bin/glasshouse-cursor.py" || echo "cursors skipped: needs bibata-cursor-theme"

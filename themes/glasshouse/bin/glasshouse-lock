@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+FLAG="$HOME/.config/glasshouse/lock"
+running() { qs list -c glasshouse -j 2>/dev/null | jq -Rse 'fromjson? | length > 0' >/dev/null; }
+restore_on() { hyprctl eval 'hl.config({ misc = { allow_session_lock_restore = true } })' >/dev/null 2>&1; }
+outputs() {
+    if [ -n "${GLASSHOUSE_SCREENS:-}" ]; then
+        tr ',' '\n' <<<"$GLASSHOUSE_SCREENS" | sed -nE 's/^ *([^= ]+)=(main|side):.*/\2 \1/p'
+    else
+        hyprctl monitors -j | jq -r 'sort_by(.x, .y) | to_entries[] | "\(if .key == 0 then "main" else "side" end) \(.value.name)"'
+    fi | awk '!($1 in o) { o[$1] = $2 } END { printf "$main_output = %s\n$side_output = %s\n", o["main"], ("side" in o) ? o["side"] : "none" }'
+}
+case "${1:-now}" in
+    test)
+        running || { echo "the glasshouse is not running (glasshouse run)"; exit 1; }
+        restore_on
+        qs -c glasshouse ipc call lock now ;;
+    enable)  mkdir -p "$(dirname "$FLAG")"; touch "$FLAG"; echo "SUPER+Delete and idle now use the Glasshouse lock" ;;
+    disable) rm -f "$FLAG"; echo "SUPER+Delete and idle use hyprlock again" ;;
+    now)
+        if [ -f "$FLAG" ] && running; then
+            restore_on
+            qs -c glasshouse ipc call lock now && exit 0
+        fi
+        pidof hyprlock >/dev/null && exit 0
+        mkdir -p "$HOME/.cache/glasshouse"
+        outputs > "$HOME/.cache/glasshouse/hyprlock-screens.conf"
+        exec hyprlock ;;
+    status)  [ -f "$FLAG" ] && echo "enabled" || echo "disabled (hyprlock)" ;;
+    *) echo "usage: glasshouse-lock [now|test|enable|disable|status]" >&2; exit 2 ;;
+esac

@@ -1,1 +1,0 @@
-oshi-notification-permission.sh

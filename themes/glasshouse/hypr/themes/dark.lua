@@ -1,0 +1,17 @@
+require("themes/glass").apply({
+    world = "dark",
+    gtk = "Rubedo-Dark",
+    gtk_fallback = "catppuccin-mocha-blue-standard+default",
+    cursor = "Rubedo-Dark",
+    active = { colors = { "rgba(D6D3F2EE)", "rgba(6F8CECFF)" }, angle = 300 },
+    inactive = "rgba(3A395099)",
+    group_active = { colors = { "rgba(D6D3F2DD)", "rgba(6F8CEC88)" }, angle = 300 },
+    group_inactive = "rgba(3A395066)",
+    shadow = { colors = { "rgba(06070EB3)", "rgba(06070E40)" }, angle = 30 },
+    shadow_inactive = "rgba(06070E4D)",
+    glow = { colors = { "rgba(F2B35E2E)", "rgba(6F8CEC14)" }, angle = 250 },
+    dim = 0.08,
+    text = "rgba(E7E4F5FF)",
+    bar_active = "rgba(243552CC)",
+    bar_inactive = "rgba(1A2840CC)",
+})

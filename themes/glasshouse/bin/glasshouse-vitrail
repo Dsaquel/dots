@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+set -uo pipefail
+REPO=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+SO=${VITRAIL_SO:-$REPO/vitrail/vitrail.so}
+STORE=${XDG_DATA_HOME:-$HOME/.local/share}/vitrail
+RT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+SIG=${HYPRLAND_INSTANCE_SIGNATURE:-}
+LOG=$RT/glasshouse-vitrail.log
+
+say() { echo "$*"; echo "$(date +%T.%3N) $*" >> "$LOG"; }
+die() { echo "glasshouse-vitrail: $*" >&2; echo "$(date +%T.%3N) $*" >> "$LOG"; exit 1; }
+hc() { timeout 10 hyprctl "$@"; }
+trap 'kill $(jobs -pr) 2>/dev/null; rm -f "${out:-}"' EXIT
+
+[ -n "$SIG" ] && [ -S "$RT/hypr/$SIG/.socket2.sock" ] || die "no running Hyprland (HYPRLAND_INSTANCE_SIGNATURE, $RT/hypr)"
+SOCK2=$RT/hypr/$SIG/.socket2.sock
+HPID=$(head -n1 "$RT/hypr/$SIG/hyprland.lock" 2>/dev/null)
+
+loaded() { hc -j plugin list | jq -e 'any(.[]; .name == "vitrail")' >/dev/null 2>&1; }
+mapped() { grep -o '/[^ ]*vitrail[^ /]*\.so$' "/proc/$HPID/maps" 2>/dev/null | sort -u | head -n1; }
+abi_of() { grep -aoE 'vitrail-abi [0-9a-f]{40}(_[a-z]+_[0-9]+\.[0-9]+\.[0-9]+)+' "$1" | head -n1 | cut -d' ' -f2 | sed -E 's/(_[a-z]+_[0-9]+\.[0-9]+)\.[0-9]+/\1/g'; }
+shell_pid() {
+    local p
+    p=$(cat "$RT/glasshouse.on" 2>/dev/null)
+    [ -n "$p" ] && grep -qxE 'qs|quickshell' "/proc/$p/comm" 2>/dev/null && echo "$p"
+}
+chrome() {
+    local p
+    p=$(shell_pid) || { echo "the shell is not running"; return 0; }
+    timeout "${1:-5}" qs ipc --pid "$p" call chrome dump 2>/dev/null | jq -r '"the shell chrome: \(if .vitrail then "stepped aside" else "drawing" end), \(.frames | length) frames on \(.screen)"' 2>/dev/null || echo "the shell chrome: no answer"
+}
+
+listen() {
+    local out=$1
+    shift
+    python3 -u - "$SOCK2" "$@" > "$out" <<'PYEOF' &
+import re, socket, sys, time
+s = socket.socket(socket.AF_UNIX)
+s.connect(sys.argv[1])
+s.settimeout(0.05)
+end, want, buf = time.time() + float(sys.argv[2]), [re.compile(p) for p in sys.argv[3:]], b""
+print("up", flush=True)
+while want and time.time() < end:
+    try:
+        data = s.recv(65536)
+    except socket.timeout:
+        continue
+    if not data:
+        break
+    *lines, buf = (buf + data).split(b"\n")
+    for line in lines:
+        text = line.decode(errors="replace")
+        if want and want[0].search(text):
+            print(f"{time.time():.3f} {text}", flush=True)
+            want.pop(0)
+sys.exit(1 if want else 0)
+PYEOF
+    LISTENER=$!
+    for _ in $(seq 100); do grep -q '^up$' "$out" 2>/dev/null && return 0; sleep 0.02; done
+    die "cannot listen on $SOCK2"
+}
+
+preflight() {
+    local abi want bad x11 turn
+    [ -f "$SO" ] || die "no build at $SO (make -C $REPO/vitrail)"
+    abi=$(abi_of "$SO")
+    want=$(hc version -j | jq -r .abiHash)
+    [ -n "$abi" ] || die "$SO carries no vitrail-abi tag (an older build: rebuild it)"
+    [ "$abi" = "$want" ] || die "built for $abi, the running Hyprland is $want: rebuild (make -C $REPO/vitrail) after restarting Hyprland on the new version"
+    bad=$(hc -j monitors all | jq -r '.[] | select(.disabled | not) | select(.scale != 1 or .transform != 0 or .mirrorOf != "none" or ((.currentFormat | test("^[XA](RGB|BGR)8888$")) | not)) | "\(.name) scale \(.scale) transform \(.transform) mirror \(.mirrorOf) \(.currentFormat)"')
+    [ -z "$bad" ] || die "an output outside the tested setup (scale 1, no transform, no mirror, 8-bit): $bad"
+    [ "$(hc -j getoption animations:enabled | jq -r '.int // (if .bool then 1 else 0 end)')" = 1 ] || die "animations are off: vitrail was never tested without them"
+    [ -z "$(hc configerrors | grep -v '^\s*$')" ] || die "the config has errors (hyprctl configerrors): fix them first"
+    [ "$(hc -j locked | jq -r .locked 2>/dev/null)" = false ] || die "the session is locked (hyprctl locked): load it once unlocked"
+    ! pgrep -f '^(/usr/bin/)?bash [^ ]*theme-switch[.]sh( |$)' >/dev/null || die "a theme switch is running (the Turn, a theme-switch.sh): load it once it is done"
+    turn=$(p=$(shell_pid) && timeout 5 qs ipc --pid "$p" call turn status 2>/dev/null | jq -r .phase 2>/dev/null)
+    [ -z "$turn" ] || [ "$turn" = rest ] || die "the Turn is playing ($turn): load it once it is done"
+    [ -f "$HOME/.config/quickshell/glasshouse/assets/shared/pearl.png" ] || die "no glasshouse assets in ~/.config/quickshell/glasshouse (glasshouse build)"
+    x11=$(hc -j clients | jq -r '[.[] | select(.xwayland) | .class] | join(", ")')
+    [ -z "$x11" ] || say "warning: XWayland windows are open ($x11): vitrail was only ever tested with Wayland clients; close them for a first load"
+    say "build ok: $abi, outputs $(hc -j monitors all | jq -r '[.[] | select(.disabled | not) | "\(.name) \(.width)x\(.height)@\(.refreshRate | floor)"] | join(", ")')"
+}
+
+stage() {
+    local sha f
+    sha=$(sha256sum "$SO" | cut -c1-12)
+    f="$STORE/vitrail-$(abi_of "$SO" | cut -c1-12)-$sha.so"
+    mkdir -p "$STORE"
+    if [ -e "$f" ]; then
+        [ "$(sha256sum "$f" | cut -c1-12)" = "$sha" ] || die "$f exists with other content"
+    else
+        cp "$SO" "$f.part" && mv "$f.part" "$f" || die "cannot copy the build to $f"
+    fi
+    echo "$f"
+}
+
+load() {
+    local f rc
+    loaded && { say "vitrail is already loaded ($(mapped))"; status; return 0; }
+    preflight
+    f=$(stage) || exit 1
+    out=$(mktemp)
+    listen "$out" 5 '^vitrail>>ready$' '^configreloaded>>'
+    say "loading $f"
+    rc=$(hc plugin load "$f" 2>&1)
+    [ "$rc" = ok ] || kill "$LISTENER" 2>/dev/null
+    wait "$LISTENER"
+    if ! grep -q 'vitrail>>ready' "$out"; then
+        say "no vitrail>>ready in 5 s (hyprctl: $rc)"
+        loaded && hc plugin unload "$f" >/dev/null 2>&1
+        loaded && die "STILL LOADED after the failed start: hyprctl plugin unload $f" || die "unloaded again; Hyprland's log: hyprctl rollinglog | grep -i vitrail"
+    fi
+    grep -q 'configreloaded' "$out" || say "warning: no config reload after the load (the world may still be the default dark): hyprctl reload"
+    [ -z "$(hc configerrors | grep -v '^\s*$')" ] || say "warning: the reload after the load reports config errors (hyprctl configerrors)"
+    rm -f "$out"
+    echo "$f" > "$RT/vitrail.loaded"
+    say "vitrail loaded"
+    status
+}
+
+unload() {
+    local f t
+    loaded || { say "vitrail is not loaded"; return 0; }
+    f=$(mapped)
+    [ -n "$f" ] || f=$(cat "$RT/vitrail.loaded" 2>/dev/null)
+    [ -n "$f" ] || die "vitrail is loaded but its file is unknown: hyprctl plugin unload <path> (see /proc/$HPID/maps)"
+    out=$(mktemp)
+    listen "$out" 6 '^vitrail>>gone$' '^configreloaded>>'
+    if shell_pid >/dev/null; then
+        hc dispatch 'hl.dsp.event("vitrail-leaving")' >/dev/null
+        t=$((SECONDS + 3))
+        while chrome 1 | grep -q 'stepped aside' && [ "$SECONDS" -lt "$t" ]; do sleep 0.025; done
+        sleep 0.05
+    fi
+    say "unloading $f"
+    hc plugin unload "$f" >/dev/null 2>&1
+    wait "$LISTENER"
+    grep -q 'vitrail>>gone' "$out" || say "warning: no vitrail>>gone heard"
+    rm -f "$out" "$RT/vitrail.loaded"
+    loaded && die "vitrail is STILL LOADED"
+    t=$((SECONDS + 3))
+    while chrome 1 | grep -q 'stepped aside' && [ "$SECONDS" -lt "$t" ]; do sleep 0.05; done
+    say "vitrail unloaded; $(chrome 1)"
+}
+
+status() {
+    if loaded; then
+        echo "loaded: $(mapped)"
+        echo "  world $(hc -j getoption plugin:vitrail:world | jq -r .str), screens $(hc -j getoption plugin:vitrail:screens | jq -r .str), retime $(hc -j getoption plugin:vitrail:retime | jq -r .bool)"
+        echo "  $(hc repl 'return hl.plugin.vitrail.stats()' 2>/dev/null)"
+    else
+        echo "not loaded (build: $SO, $( [ -f "$SO" ] && abi_of "$SO" || echo none))"
+    fi
+    echo "  $(chrome)"
+}
+
+case "${1:-status}" in
+    load) load ;;
+    unload) unload ;;
+    status) status ;;
+    *) echo "usage: glasshouse-vitrail [status|load|unload]" >&2; exit 2 ;;
+esac

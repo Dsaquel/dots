@@ -1,1 +1,0 @@
-oshi-stop.sh

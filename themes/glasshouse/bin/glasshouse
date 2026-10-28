@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+LOG="${XDG_RUNTIME_DIR:-/tmp}/glasshouse.log"
+pid() { qs list -c glasshouse -j 2>/dev/null | jq -Rsr 'fromjson? | .[0].pid // empty'; }
+run() {
+    [ -n "$(pid)" ] && { echo "glasshouse already running ($(pid))"; return 0; }
+    systemctl --user mask dunst.service >/dev/null 2>&1 || true
+    "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/glasshouse/sfx/build.sh" >/dev/null 2>&1 || true
+    local cmd="env QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vulkan QS_NO_RELOAD_POPUP=1 setsid -f qs -c glasshouse -n >'$LOG' 2>&1"
+    hyprctl eval "hl.dispatch(hl.dsp.exec_cmd([[$cmd]]))" >/dev/null 2>&1 || sh -c "$cmd"
+    for _ in $(seq 1 50); do [ -n "$(pid)" ] && break; sleep 0.1; done
+    [ -n "$(pid)" ] && echo "glasshouse running ($(pid)), log $LOG"
+}
+stop() {
+    local p
+    p="$(pid)"
+    [ -z "$p" ] && return 0
+    kill -- -"$p" 2>/dev/null || kill "$p"
+    for _ in $(seq 1 30); do kill -0 "$p" 2>/dev/null || break; sleep 0.1; done
+    kill -0 "$p" 2>/dev/null && kill -9 -- -"$p"
+    rm -f "${XDG_RUNTIME_DIR:-/tmp}/glasshouse.on"
+    hyprctl reload >/dev/null 2>&1 || true
+}
+case "${1:-run}" in
+    run) run ;;
+    stop) stop ;;
+    build) "$(dirname "$(readlink -f "$0")")/../shell/gen/build.sh" ;;
+    restart) stop; run ;;
+    settings) qs -c glasshouse ipc call settings "${2:-open}" ;;
+    status)
+        p="$(pid)"
+        if [ -n "$p" ]; then
+            echo "running ($p)"
+            qs -c glasshouse ipc call glasshouse status 2>/dev/null
+        else
+            echo "stopped"
+            exit 1
+        fi ;;
+    *) echo "usage: glasshouse [run|stop|restart|build|status|settings [open|close|status]]" >&2; exit 2 ;;
+esac

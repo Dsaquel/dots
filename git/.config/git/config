@@ -1,3 +1,0 @@
-[alias]
-  ep-original = !git remote set-url origin git@github.com:element-plus/element-plus.git && echo "Switched to original"
-  ep-fork = !git remote set-url origin git@github.com:Dsaquel/element-plus.git && echo "Switched to fork"

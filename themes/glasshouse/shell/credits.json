@@ -1,0 +1,15 @@
+{
+  "root": "~/.local/share/glasshouse",
+  "credits": [
+    {
+      "artists": ["Lifeline"],
+      "url": "https://www.pixiv.net/artworks/147860666",
+      "paths": ["world/room-*", "world/layers/room-*", "clips/room-*", "heroine/", "sill/", "turn/", "fetch/", "ref/1028-girl.jpg"]
+    },
+    {
+      "artists": ["Lifeline"],
+      "url": "https://www.pixiv.net/artworks/148432169",
+      "paths": ["world/diner-*", "world/layers/diner-*", "clips/diner-*"]
+    }
+  ]
+}

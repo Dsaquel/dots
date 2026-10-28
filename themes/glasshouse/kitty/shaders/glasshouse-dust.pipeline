@@ -1,0 +1,27 @@
+textures a persist
+
+startgroup
+    animation_start cursor-trail-move
+    animation_stop 560
+    animation_step 16
+    viewport_size 0.5 0.05
+    var int STAGE = 2
+    shaders glasshouse-trail
+    output_texture a
+endgroup
+
+startgroup
+    attach
+    animation_step 16
+    viewport_size 0.5 0.05
+    var int STAGE = 3
+    shaders glasshouse-trail
+    output_texture persist
+endgroup
+
+startgroup
+    attach
+    animation_step 16
+    var int STAGE = 4
+    shaders glasshouse-trail
+endgroup

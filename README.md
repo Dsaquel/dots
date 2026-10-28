@@ -1,5 +1,5 @@
-# dotfiles
+# Dots
 
-Personal dotfiles.
+## Glasshouse
 
-Nvim config based on [craftzdog/dotfiles-public](https://github.com/craftzdog/dotfiles-public) by Takuya Matsuyama.
+<video src="showcase/glasshouse.mp4" controls></video>

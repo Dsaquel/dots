@@ -1,0 +1,11 @@
+__pycache__/
+*.qsb
+sounds/
+assets/**/*.png
+assets/**/*.wav
+!assets/*/lock-hyprlock-*.png
+assets/**/sanctum-wing-*-slots.json
+assets/shared/lancet.json
+assets/shared/profile.json
+assets/turn/mesh-anime.json
+assets/turn/sparks-anime.json

@@ -1,9 +1,0 @@
-{
-  "name": "Okayu Purple Mocha",
-  "base": "dark",
-  "overrides": {
-    "promptBorder": "#cba6f7",
-    "planMode": "#b190fa",
-    "bashBorder": "#f5c2e7"
-  }
-}

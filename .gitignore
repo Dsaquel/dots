@@ -25,16 +25,8 @@
 **/.env.*
 !**/.env.example
 
-waybar/style-active.css
-swaync/style-active.css
-swaync/style.css
-kitty/theme-active.conf
-tmux/theme-active.conf
-hypr/themes/active.conf
-fish/conf.d/tide-active.fish
-fuzzel/fuzzel.ini
-lazygit/config.yml
+themes/*/hypr/themes/active.lua
+**/htop/htop_history
 
-hypr/IDEAS.txt
-
-claude/hooks/caveman-*
+themes/*/shell/dev/
+themes/*/vitrail/dev/

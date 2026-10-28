@@ -1,0 +1,4 @@
+.git
+notes
+**/.claude/settings.local.json
+*.pyc

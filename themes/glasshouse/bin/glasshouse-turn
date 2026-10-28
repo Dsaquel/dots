@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+if qs list -c glasshouse -j 2>/dev/null | jq -Rse 'fromjson? | length > 0' >/dev/null && timeout 2 qs -c glasshouse ipc call turn begin >/dev/null 2>&1; then
+    exit 0
+fi
+exec "$HOME/.local/bin/theme-switch.sh" toggle

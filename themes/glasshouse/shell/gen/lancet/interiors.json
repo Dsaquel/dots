@@ -1,0 +1,13 @@
+{
+ "_": "Hand-traced bottle interiors, sprite-normalised (u right, v down). shape: ell cu cv ru rv | rrect u0 v0 u1 v1 r | poly [[u, v]...]; top = the painted liquid surface, stopper = where the mic's alert glows.",
+ "night-moon-flask":      {"shape": ["ell", 0.44, 0.665, 0.40, 0.27], "top": 0.565, "stopper": [0.47, 0.06]},
+ "night-tide-ampoule":    {"shape": ["rrect", 0.13, 0.225, 0.60, 0.865, 0.10], "top": 0.25, "stopper": [0.36, 0.05]},
+ "night-mercury-alembic": {"shape": ["ell", 0.40, 0.665, 0.37, 0.235], "top": 0.565, "stopper": [0.43, 0.30]},
+ "night-sea-jar":         {"shape": ["rrect", 0.05, 0.33, 0.83, 0.935, 0.14], "top": 0.47, "stopper": [0.44, 0.10]},
+ "night-star-vial":       {"shape": ["rrect", 0.17, 0.26, 0.53, 0.895, 0.12], "top": 0.27, "stopper": [0.35, 0.08]},
+ "day-sky-orb":           {"shape": ["ell", 0.47, 0.585, 0.40, 0.265], "top": 0.33, "stopper": [0.47, 0.07]},
+ "day-pearl-drop":        {"shape": ["poly", [[0.50, 0.30], [0.62, 0.38], [0.78, 0.55], [0.90, 0.72], [0.88, 0.86], [0.72, 0.95], [0.50, 0.975], [0.28, 0.95], [0.12, 0.86], [0.10, 0.72], [0.22, 0.55], [0.38, 0.38]]], "top": 0.36, "stopper": [0.50, 0.07]},
+ "day-sun-crystal":       {"shape": ["poly", [[0.50, 0.33], [0.84, 0.43], [0.96, 0.62], [0.84, 0.84], [0.50, 0.955], [0.16, 0.84], [0.04, 0.62], [0.16, 0.43]]], "top": 0.38, "stopper": [0.50, 0.08]},
+ "day-crown-bottle":      {"shape": ["ell", 0.50, 0.645, 0.40, 0.255], "top": 0.42, "stopper": [0.50, 0.18]},
+ "day-gold-ampoule":      {"shape": ["rrect", 0.15, 0.22, 0.60, 0.92, 0.14], "top": 0.23, "stopper": [0.40, 0.06]}
+}

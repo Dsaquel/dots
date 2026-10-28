@@ -1,0 +1,4 @@
+^/dev
+^/gen
+__pycache__
+\.stow-local-ignore

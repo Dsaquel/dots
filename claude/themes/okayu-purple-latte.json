@@ -1,9 +1,0 @@
-{
-  "name": "Okayu Purple Latte",
-  "base": "light",
-  "overrides": {
-    "promptBorder": "#8839EF",
-    "planMode": "#8839EF",
-    "bashBorder": "#EA76CB"
-  }
-}
