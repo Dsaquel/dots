@@ -1,0 +1,42 @@
+GLASSHOUSE ART PACK
+===================
+The art, films, sounds and fonts the Glasshouse theme reads from ~/.local/share/glasshouse.
+Installed by glasshouse-pack install; every file is listed with its sha256 in SHA256SUMS
+(check with: glasshouse-pack verify, or sha256sum -c SHA256SUMS inside the pack).
+
+What runs code
+--------------
+Only ledger/scene: a Godot 4 project (scripts/*.gd, shaders/*.gdshader) the settings
+panel (Super+I) starts with godot --path. Everything else is data: png, jpg, mp4, mkv,
+wav, json, ttf.
+
+Artwork
+-------
+  Lifeline   "Place of Rest"  https://www.pixiv.net/artworks/147860666
+             world/room-*, world/layers/room-*, clips/room-*, clips/ledger-fpv-dark.mp4,
+             heroine/, sill/, fetch/, ledger/her/
+  Lifeline   "Sea of Gears"   https://www.pixiv.net/artworks/148432169
+             world/diner-*, world/layers/diner-*, clips/diner-*
+  Redistributed here with the artist's permission; the rights stay with the artist.
+  Do not reuse outside these dotfiles without asking them.
+
+  Made from those paintings with:
+    GPT Image 2 / 2.5         extended stills, her poses, faces, potions (potions/, ref/potions-*)
+    Seedance 2.5, Vidu q3     the films (clips/, sill/, fetch/clips/, ledger/her/)
+    Real-ESRGAN, LaMa, RIFE   upscaling, inpainting, frame interpolation
+    BiRefNet                  the mattes (fetch/clips/*.matte.mkv)
+
+  wings/, ledger/scene/,      generated with GPT Image 2 (images) and ElevenLabs (sounds)
+  ledger/sounds/
+
+Sounds
+------
+  foley/                      generated with ElevenLabs (eleven_text_to_sound_v2); the theme
+                              mixes its cues from these at build time
+
+Fonts
+-----
+  fonts/                      SIL Open Font License 1.1 (OFL.txt in each folder), except
+                              Monaspace (OFL, LICENSE) and Symbols Nerd Font (MIT, LICENSE)
+  ledger/scene/fonts/         Almendra, Cinzel, Cinzel Decorative, Cormorant SC,
+                              IM Fell English, Zen Old Mincho: the same OFL, texts in fonts/

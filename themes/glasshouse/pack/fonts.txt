@@ -1,0 +1,15 @@
+BodoniModa
+Cardo
+Cinzel
+CinzelDecorative
+DelaGothicOne
+GildaDisplay
+KaiseiTokumin
+Manrope
+Monaspace
+Outfit
+SymbolsNerdFont
+Almendra
+CormorantSC
+IMFellEnglish
+ZenOldMincho

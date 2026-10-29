@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+T=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+DEST=${GLASSHOUSE_PACK:-${XDG_DATA_HOME:-$HOME/.local/share}/glasshouse}
+FONTS=${XDG_DATA_HOME:-$HOME/.local/share}/fonts/glasshouse
+BASE=https://github.com/Dsaquel/dots/releases/download
+
+die() { echo "glasshouse-pack: $*" >&2; exit 1; }
+need() { for c in "$@"; do command -v "$c" >/dev/null || die "$c not found"; done; }
+
+install() {
+    need curl zstd tar sha256sum
+    read -r url sum < "$T/pack/release.txt"
+    if [ -e "$DEST" ]; then
+        [ -f "$DEST/RELEASE" ] || die "$DEST exists and was not installed by glasshouse-pack: move it away first"
+        [ "$(cat "$DEST/RELEASE")" = "$url $sum" ] && { echo "pack up to date: $DEST"; return; }
+    fi
+    mkdir -p "$(dirname "$DEST")"
+    tmp=$(mktemp -d "$(dirname "$DEST")/.glasshouse-pack.XXXX")
+    trap 'rm -rf "$tmp"' EXIT
+    echo "downloading $url"
+    curl -fL --progress-bar -o "$tmp/pack.tar.zst" "$url"
+    echo "$sum  $tmp/pack.tar.zst" | sha256sum -c --quiet - || die "checksum mismatch: the download is not the pinned pack"
+    tar -C "$tmp" -I zstd -xf "$tmp/pack.tar.zst"
+    rm "$tmp/pack.tar.zst"
+    (cd "$tmp/glasshouse-pack" && sha256sum -c --quiet SHA256SUMS) || die "a file in the pack does not match SHA256SUMS"
+    echo "$url $sum" > "$tmp/glasshouse-pack/RELEASE"
+    if [ -e "$DEST" ]; then
+        mv "$DEST" "$tmp/old"
+        mv "$tmp/glasshouse-pack" "$DEST" || { mv "$tmp/old" "$DEST"; die "could not replace $DEST, the old pack is back"; }
+        echo "pack updated: rebuild the theme (shell/gen/build.sh)"
+    else
+        mv "$tmp/glasshouse-pack" "$DEST"
+    fi
+    mkdir -p "$(dirname "$FONTS")"
+    ln -sfn "$DEST/fonts" "$FONTS"
+    command -v fc-cache >/dev/null && fc-cache -f "$FONTS"
+    echo "pack installed: $DEST"
+}
+
+verify() {
+    [ -f "$DEST/SHA256SUMS" ] || die "no pack at $DEST"
+    (cd "$DEST" && sha256sum -c --quiet SHA256SUMS) && echo "all $(wc -l < "$DEST/SHA256SUMS") files match"
+}
+
+build() {
+    need rsync zstd tar sha256sum
+    tag=${1:?usage: glasshouse-pack build TAG [OUT]}
+    src=${GLASSHOUSE_PACK_SRC:-$DEST}
+    fonts=${GLASSHOUSE_PACK_FONTS:-${XDG_DATA_HOME:-$HOME/.local/share}/fonts/Session5}
+    out=${2:-${XDG_CACHE_HOME:-$HOME/.cache}/glasshouse/pack}
+    missing=$(sed -nE 's,^\+ /([^*]*[^/*])$,\1,p' "$T/pack/filter.txt" | while read -r f; do [ -e "$src/$f" ] || echo "$f"; done)
+    [ -z "$missing" ] || die "missing from $src: $missing"
+    mkdir -p "$out"
+    stage=$(mktemp -d "$out/.stage.XXXX")
+    trap 'rm -rf "$stage"' EXIT
+    p=$stage/glasshouse-pack
+    rsync -a --prune-empty-dirs --filter="merge $T/pack/filter.txt" "$src/" "$p/"
+    mkdir -p "$p/fonts"
+    while read -r f; do cp -r "$fonts/$f" "$p/fonts/$f"; done < "$T/pack/fonts.txt"
+    cp "$T/pack/CREDITS.txt" "$p/CREDITS.txt"
+    (cd "$p" && find . -type f ! -path ./SHA256SUMS -printf '%P\n' | LC_ALL=C sort | xargs -d '\n' sha256sum > SHA256SUMS)
+    name=glasshouse-$tag.tar.zst
+    tar -C "$stage" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner --mode='a+rX,u+w,go-w' --format=gnu -cf - glasshouse-pack \
+        | zstd -T0 -10 -q -f -o "$out/$name"
+    cp "$p/SHA256SUMS" "$p/CREDITS.txt" "$out/"
+    echo "$BASE/$tag/$name $(sha256sum "$out/$name" | cut -d' ' -f1)" > "$T/pack/release.txt"
+    echo "built $out/$name ($(du -h "$out/$name" | cut -f1), $(wc -l < "$p/SHA256SUMS") files), pinned in pack/release.txt"
+}
+
+case "${1:-}" in
+    install) install ;;
+    verify) verify ;;
+    build) shift; build "$@" ;;
+    *) echo "usage: glasshouse-pack install|verify|build TAG [OUT]" >&2; exit 2 ;;
+esac
